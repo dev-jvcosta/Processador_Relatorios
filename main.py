@@ -8,6 +8,8 @@ import numpy as np
 import unicodedata
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+import sv_ttk
+import darkdetect
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
@@ -2709,7 +2711,20 @@ class UnifiedProcessorGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Processador Unificado de Relatórios")
-        self.root.geometry("1320x1030")
+        self.root.geometry("1520x1060")
+        
+        # Configuração de Tema (Auto Dark/Light)
+        try:
+            # Detecta se o sistema está em modo escuro
+            if darkdetect.isDark():
+                sv_ttk.set_theme("dark")
+            else:
+                sv_ttk.set_theme("light")
+            
+            # Hack opcional: Força a atualização da barra de título no Windows 11
+            # (sv_ttk geralmente faz isso, mas garante a consistência)
+        except Exception as e:
+            logging.warning(f"Não foi possível aplicar o tema moderno: {e}")
         
         # Caminhos padrão - modifique aqui para definir caminhos pré-preenchidos
         # Deixe vazio ("") para usar o diretório atual

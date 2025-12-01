@@ -2,3 +2,5 @@ pandas
 openpyxl
 reportlab
 numpy
+sv-ttk
+darkdetect
