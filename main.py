@@ -2748,9 +2748,17 @@ class UnifiedProcessorGUI:
             logging.warning(f"Não foi possível aplicar o tema moderno: {e}")
         
         # Caminhos padrão - modifique aqui para definir caminhos pré-preenchidos
-        # Deixe vazio ("") para usar o diretório atual
-        self.DEFAULT_INPUT_DIR = r""  # Exemplo: r"C:\MeusArquivos\Entrada"
-        self.DEFAULT_OUTPUT_DIR = r""  # Exemplo: r"C:\MeusArquivos\Saida"
+        self.DEFAULT_INPUT_DIR = r"D:\Scripts\Entrada"
+        self.DEFAULT_OUTPUT_DIR = r"D:\Scripts\Saida"
+        
+        # Criar pastas se não existirem
+        if self.DEFAULT_INPUT_DIR and not os.path.exists(self.DEFAULT_INPUT_DIR):
+            os.makedirs(self.DEFAULT_INPUT_DIR, exist_ok=True)
+            logging.info(f"Pasta de entrada criada: {self.DEFAULT_INPUT_DIR}")
+        
+        if self.DEFAULT_OUTPUT_DIR and not os.path.exists(self.DEFAULT_OUTPUT_DIR):
+            os.makedirs(self.DEFAULT_OUTPUT_DIR, exist_ok=True)
+            logging.info(f"Pasta de saída criada: {self.DEFAULT_OUTPUT_DIR}")
         
         self.base_dir = self.DEFAULT_INPUT_DIR
         self.output_base_dir = self.DEFAULT_OUTPUT_DIR
@@ -2851,7 +2859,7 @@ class UnifiedProcessorGUI:
         version_frame = ttk.LabelFrame(scrollable_frame, text="Versão dos Arquivos (ex: _2.0, _1.0)", padding=10)
         version_frame.grid(row=2, column=0, sticky="ew", pady=5)
         self.version_entry = ttk.Entry(version_frame, width=20)
-        self.version_entry.insert(0, "_1.0")  # Valor padrão
+        self.version_entry.insert(0, "")  # Inicia em branco
         self.version_entry.grid(row=0, column=0, padx=(0, 10), sticky="w")
         self.version_entry.bind('<KeyRelease>', self.on_version_change)
         ttk.Label(version_frame, text="Deixe vazio para não usar versão").grid(row=0, column=1, sticky="w")
