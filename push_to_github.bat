@@ -24,12 +24,12 @@ if %errorlevel% == 0 (
     echo Digite a URL do seu repositorio GitHub:
     echo Exemplo: https://github.com/SEU_USUARIO/Processador_Relatorios.git
     set /p repo_url=
-    git remote set-url origin !repo_url!
+    git remote set-url origin %repo_url%
 ) else (
     echo Digite a URL do seu repositorio GitHub:
     echo Exemplo: https://github.com/SEU_USUARIO/Processador_Relatorios.git
     set /p repo_url=
-    git remote add origin !repo_url!
+    git remote add origin %repo_url%
 )
 
 echo.
