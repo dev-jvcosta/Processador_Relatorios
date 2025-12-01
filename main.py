@@ -2862,7 +2862,13 @@ class UnifiedProcessorGUI:
         self.version_entry.insert(0, "")  # Inicia em branco
         self.version_entry.grid(row=0, column=0, padx=(0, 10), sticky="w")
         self.version_entry.bind('<KeyRelease>', self.on_version_change)
-        ttk.Label(version_frame, text="Deixe vazio para não usar versão").grid(row=0, column=1, sticky="w")
+        
+        # Dropdown de versões predefinidas
+        self.version_options = ["---", "_1.0", "_2.0", "_3.0", "_4.0", "_5.0"]
+        self.version_combobox = ttk.Combobox(version_frame, values=self.version_options, state="readonly", width=10)
+        self.version_combobox.set("---")  # Valor inicial
+        self.version_combobox.grid(row=0, column=1, padx=(0, 10), sticky="w")
+        self.version_combobox.bind('<<ComboboxSelected>>', self.on_version_dropdown_select)
 
         # Seleção do Tipo de Relatório
         report_type_frame = ttk.LabelFrame(scrollable_frame, text="Tipo de Relatório", padding=10)
@@ -3006,15 +3012,16 @@ class UnifiedProcessorGUI:
         # Status atual
         self.status_var = tk.StringVar()
         self.status_var.set("Encontradas 18 empresas para os tipos de relatório selecionados.")
-        status_label = ttk.Label(progress_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        # Status centralizado
+        status_label = ttk.Label(progress_frame, textvariable=self.status_var, anchor=tk.CENTER)
         status_label.grid(row=0, column=0, sticky="ew", pady=(0, 5))
         
         # Barra de Progresso Geral
         self.progress = ttk.Progressbar(progress_frame, orient=tk.HORIZONTAL, mode='determinate')
         self.progress.grid(row=1, column=0, sticky="ew", pady=(0, 5))
         
-        # Label de porcentagem
-        self.progress_label = ttk.Label(progress_frame, text="0%")
+        # Label de porcentagem centralizada
+        self.progress_label = ttk.Label(progress_frame, text="0% (0/0)", anchor=tk.CENTER)
         self.progress_label.grid(row=2, column=0, pady=(0, 5))
         
         # Log de Processamento
@@ -3293,6 +3300,19 @@ class UnifiedProcessorGUI:
         if self.base_dir and self.output_base_dir:
             self.initialize_processors()
             self.update_company_list()
+
+    def on_version_dropdown_select(self, event=None):
+        """Atualiza o campo de versão quando uma opção é selecionada no dropdown"""
+        selected = self.version_combobox.get()
+        if selected == "---":
+            # Limpa o campo se selecionou o valor vazio
+            self.version_entry.delete(0, tk.END)
+        else:
+            # Preenche o campo com a versão selecionada
+            self.version_entry.delete(0, tk.END)
+            self.version_entry.insert(0, selected)
+        # Dispara a atualização dos processadores
+        self.on_version_change()
 
     def on_company_select(self, event=None):
         # Atualiza os períodos disponíveis conforme empresas selecionadas
@@ -3761,22 +3781,37 @@ class UnifiedProcessorGUI:
             self.status_var.set(f"Processando: {current_task}")
             # Adicionar ao log também
             if completed is not None and total is not None:
-                self.add_log_entry(f"{current_task} ({completed+1}/{total})", "processing")
+                self.add_log_entry(f"{current_task} ({completed}/{total})", "processing")
             else:
                 self.add_log_entry(current_task, "processing")
         
         if completed is not None and total is not None:
             self.completed_tasks = completed
             self.total_tasks = total
-            # Corrigir cálculo: usar (completed + 1) para mostrar progresso atual
-            percentage = ((completed + 1) / total * 100) if total > 0 else 0
+            # Calcular porcentagem (limitada a 100%)
+            percentage = min(100, (completed / total * 100)) if total > 0 else 0
             self.progress["value"] = percentage
-            self.progress_label.config(text=f"{percentage:.1f}% ({completed + 1}/{total})")
+            self.progress_label.config(text=f"{percentage:.1f}% ({completed}/{total})")
+            
+            # Resetar estilo da barra ao iniciar (completed=0)
+            if completed == 0:
+                try:
+                    self.progress.configure(style="TProgressbar")  # Estilo padrão
+                except Exception:
+                    pass
+            # Mudar estilo da barra para verde quando atingir 100%
+            elif percentage >= 100:
+                try:
+                    style = ttk.Style()
+                    style.configure("green.Horizontal.TProgressbar", troughcolor='gray', background='#88E788')
+                    self.progress.configure(style="green.Horizontal.TProgressbar")
+                except Exception:
+                    pass  # Ignora se não conseguir mudar o estilo
         
         # Otimizado: atualizar UI apenas quando necessário (a cada 10 itens ou no final)
         if completed is not None and total is not None:
             # Atualizar UI apenas a cada 10% de progresso ou no último item
-            if (completed + 1) % max(1, total // 10) == 0 or (completed + 1) == total:
+            if completed % max(1, total // 10) == 0 or completed == total:
                 self.root.update_idletasks()
         else:
             self.root.update_idletasks()
