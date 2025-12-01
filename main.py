@@ -2713,6 +2713,10 @@ class UnifiedProcessorGUI:
         self.root.title("Processador Unificado de Relatórios")
         self.root.geometry("1520x1060")
         
+        # Configuração responsiva da raiz
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+        
         # Configuração de Tema (Auto Dark/Light)
         try:
             # Detecta se o sistema está em modo escuro
@@ -2759,26 +2763,37 @@ class UnifiedProcessorGUI:
     
     def create_widgets(self):
         # Frame principal com scroll
-        main_frame = ttk.Frame(self.root)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        main_frame = ttk.Frame(self.root, padding=10)
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(0, weight=1)
         
         # Canvas para scroll
         canvas = tk.Canvas(main_frame)
         scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        # Configurar coluna 0 do scrollable_frame com weight=1 para esticar horizontalmente
+        scrollable_frame.columnconfigure(0, weight=1)
+        # Configurar rows para expansão vertical
+        scrollable_frame.rowconfigure(4, weight=1)  # selection_frame (empresas e períodos)
+        scrollable_frame.rowconfigure(7, weight=1)  # log_frame
         
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        # Armazenar o ID da janela do canvas
+        self.canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        
+        # Função para ajustar largura e scroll region
+        def configure_scroll_region(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfig(self.canvas_window, width=event.width)
+        
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", configure_scroll_region)
         canvas.configure(yscrollcommand=scrollbar.set)
         
         # Diretório Base
         dir_frame = ttk.LabelFrame(scrollable_frame, text="Diretório Base dos Arquivos de Entrada", padding=10)
-        dir_frame.pack(fill=tk.X, expand=True, pady=5)
-        # Configurar grid para responsividade
+        dir_frame.grid(row=0, column=0, sticky="ew", pady=5)
         dir_frame.columnconfigure(1, weight=1)
         dir_frame.rowconfigure(0, weight=1)
         
@@ -2798,8 +2813,7 @@ class UnifiedProcessorGUI:
 
         # Diretório de Saída
         output_dir_frame = ttk.LabelFrame(scrollable_frame, text="Diretório Base dos Arquivos de Saída", padding=10)
-        output_dir_frame.pack(fill=tk.X, expand=True, pady=5)
-        # Configurar grid para responsividade
+        output_dir_frame.grid(row=1, column=0, sticky="ew", pady=5)
         output_dir_frame.columnconfigure(1, weight=1)
         output_dir_frame.rowconfigure(0, weight=1)
         
@@ -2818,124 +2832,149 @@ class UnifiedProcessorGUI:
 
         # Campo de Versão
         version_frame = ttk.LabelFrame(scrollable_frame, text="Versão dos Arquivos (ex: _2.0, _1.0)", padding=10)
-        version_frame.pack(fill=tk.X, pady=5)
+        version_frame.grid(row=2, column=0, sticky="ew", pady=5)
         self.version_entry = ttk.Entry(version_frame, width=20)
         self.version_entry.insert(0, "_1.0")  # Valor padrão
-        self.version_entry.pack(side=tk.LEFT, padx=(0, 10))
+        self.version_entry.grid(row=0, column=0, padx=(0, 10), sticky="w")
         self.version_entry.bind('<KeyRelease>', self.on_version_change)
-        ttk.Label(version_frame, text="Deixe vazio para não usar versão").pack(side=tk.LEFT)
+        ttk.Label(version_frame, text="Deixe vazio para não usar versão").grid(row=0, column=1, sticky="w")
 
         # Seleção do Tipo de Relatório
         report_type_frame = ttk.LabelFrame(scrollable_frame, text="Tipo de Relatório", padding=10)
-        report_type_frame.pack(fill=tk.X, pady=5)
+        report_type_frame.grid(row=3, column=0, sticky="ew", pady=5)
         # Checkbuttons para seleção múltipla
         self.report_types = ["Abst_Mot_Por_empresa", "Ranking_Por_Empresa", "Ranking_Integração", "Ranking_Ouro_Mediano", "Ranking_Km_Proporcional", "Turnos_Integração", "Resumo_Motorista_Cliente"]
         self.report_type_vars = {rt: tk.BooleanVar(value=True) for rt in self.report_types}
+        col = 0
         for rt in self.report_types:
-            ttk.Checkbutton(report_type_frame, text=rt, variable=self.report_type_vars[rt], command=self.on_report_type_change).pack(side=tk.LEFT, padx=10)
+            ttk.Checkbutton(report_type_frame, text=rt, variable=self.report_type_vars[rt], command=self.on_report_type_change).grid(row=0, column=col, padx=10, sticky="w")
+            col += 1
+        # Configurar coluna expansível antes do botão para empurrá-lo à direita
+        report_type_frame.columnconfigure(col, weight=1)
         # Botão Processar Tudo dentro do frame de tipo de relatório
         self.process_everything_btn = ttk.Button(report_type_frame, text="Processar Tudo", command=self.process_everything)
-        self.process_everything_btn.pack(side=tk.RIGHT, padx=(10, 0))
+        self.process_everything_btn.grid(row=0, column=col+1, padx=(10, 0), sticky="e")
 
         # Frame para seleção de empresas e períodos
         selection_frame = ttk.Frame(scrollable_frame)
-        selection_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        selection_frame.grid(row=4, column=0, sticky="nsew", pady=5)
+        selection_frame.columnconfigure(0, weight=1)
+        selection_frame.columnconfigure(1, weight=1)
+        selection_frame.rowconfigure(0, weight=1)
         
         # Seleção da Empresa
         company_frame = ttk.LabelFrame(selection_frame, text="Empresa", padding=10)
-        company_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        company_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        company_frame.columnconfigure(0, weight=1)
+        company_frame.rowconfigure(0, weight=1)
         # Listbox com seleção múltipla
         self.company_listbox = tk.Listbox(company_frame, selectmode=tk.MULTIPLE, exportselection=False)
-        self.company_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        self.company_listbox.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
         self.company_listbox.bind('<<ListboxSelect>>', self.on_company_select)
         self.company_scroll = ttk.Scrollbar(company_frame, orient=tk.VERTICAL, command=self.company_listbox.yview)
-        self.company_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.company_scroll.grid(row=0, column=1, sticky="ns")
         self.company_listbox.config(yscrollcommand=self.company_scroll.set)
 
         # Seleção do Período (Ano/Mês)
         period_frame = ttk.LabelFrame(selection_frame, text="Períodos Disponíveis", padding=10)
-        period_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        period_frame.grid(row=0, column=1, sticky="nsew")
+        period_frame.columnconfigure(0, weight=1)
+        period_frame.rowconfigure(0, weight=1)
         
         # Frame interno para organizar anos e meses
         period_inner_frame = ttk.Frame(period_frame)
-        period_inner_frame.pack(fill=tk.BOTH, expand=True)
+        period_inner_frame.grid(row=0, column=0, sticky="nsew")
+        period_inner_frame.columnconfigure(0, weight=1)
+        period_inner_frame.columnconfigure(1, weight=1)
+        period_inner_frame.rowconfigure(0, weight=1)
         
         # Frame para anos
         year_frame = ttk.LabelFrame(period_inner_frame, text="Anos", padding=5)
-        year_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        year_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        year_frame.columnconfigure(0, weight=1)
+        year_frame.rowconfigure(0, weight=1)
         
         # Listbox para ano
         self.year_listbox = tk.Listbox(year_frame, selectmode=tk.MULTIPLE, exportselection=False, height=6)
-        self.year_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 2))
+        self.year_listbox.grid(row=0, column=0, sticky="nsew", padx=(0, 2))
         year_scroll = ttk.Scrollbar(year_frame, orient=tk.VERTICAL, command=self.year_listbox.yview)
-        year_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        year_scroll.grid(row=0, column=1, sticky="ns")
         self.year_listbox.config(yscrollcommand=year_scroll.set)
         
         # Frame para meses
         month_frame = ttk.LabelFrame(period_inner_frame, text="Meses", padding=5)
-        month_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        month_frame.grid(row=0, column=1, sticky="nsew")
+        month_frame.columnconfigure(0, weight=1)
+        month_frame.rowconfigure(0, weight=1)
         
         # Listbox para mês
         self.month_listbox = tk.Listbox(month_frame, selectmode=tk.MULTIPLE, exportselection=False, height=6)
-        self.month_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 2))
+        self.month_listbox.grid(row=0, column=0, sticky="nsew", padx=(0, 2))
         month_scroll = ttk.Scrollbar(month_frame, orient=tk.VERTICAL, command=self.month_listbox.yview)
-        month_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        month_scroll.grid(row=0, column=1, sticky="ns")
         self.month_listbox.config(yscrollcommand=month_scroll.set)
 
         # Botões de Ação
         button_frame = ttk.Frame(scrollable_frame, padding=10)
-        button_frame.pack(fill=tk.X, pady=5)
+        button_frame.grid(row=5, column=0, sticky="ew", pady=5)
         self.process_selected_btn = ttk.Button(button_frame, text="Processar Selecionados", state=tk.DISABLED, command=self.process_selected)
-        self.process_selected_btn.pack(side=tk.LEFT, padx=(0, 5))
+        self.process_selected_btn.grid(row=0, column=0, padx=(0, 5), sticky="w")
         self.process_all_btn = ttk.Button(button_frame, text="Processar Todos os Períodos das Empresas", state=tk.DISABLED, command=self.process_all_periods_for_company)
-        self.process_all_btn.pack(side=tk.LEFT)
+        self.process_all_btn.grid(row=0, column=1, padx=(0, 5), sticky="w")
         # Botão para processar todas as empresas do relatório selecionado
         self.process_all_companies_btn = ttk.Button(button_frame, text="Processar Todas as Empresas", command=self.process_all_companies)
-        self.process_all_companies_btn.pack(side=tk.LEFT, padx=(10, 0))
+        self.process_all_companies_btn.grid(row=0, column=2, padx=(5, 0), sticky="w")
         # Botão específico para consolidação Ouro Mediano
         self.process_ouro_mediano_btn = ttk.Button(button_frame, text="Consolidar Ouro Mediano", command=self.process_ouro_mediano_consolidation)
-        self.process_ouro_mediano_btn.pack(side=tk.LEFT, padx=(10, 0))
+        self.process_ouro_mediano_btn.grid(row=0, column=3, padx=(5, 0), sticky="w")
         # Botão específico para Ranking_Km_Proporcional
         self.process_km_proporcional_btn = ttk.Button(button_frame, text="Processar Ranking_Km_Proporcional", command=self.process_km_proporcional)
-        self.process_km_proporcional_btn.pack(side=tk.LEFT, padx=(10, 0))
+        self.process_km_proporcional_btn.grid(row=0, column=4, padx=(5, 0), sticky="w")
+        # Configurar coluna expansível antes do botão Atualizar para empurrá-lo à direita
+        button_frame.columnconfigure(5, weight=1)
         # Botão de Atualizar
         self.refresh_btn = ttk.Button(button_frame, text="Atualizar", command=self.update_company_list)
-        self.refresh_btn.pack(side=tk.LEFT, padx=(10, 0))
+        self.refresh_btn.grid(row=0, column=6, padx=(5, 0), sticky="e")
         
         # Frame de Progresso
         progress_frame = ttk.LabelFrame(scrollable_frame, text="Progresso", padding=10)
-        progress_frame.pack(fill=tk.X, pady=5)
+        progress_frame.grid(row=6, column=0, sticky="ew", pady=5)
+        progress_frame.columnconfigure(0, weight=1)
         
         # Status atual
         self.status_var = tk.StringVar()
         self.status_var.set("Encontradas 18 empresas para os tipos de relatório selecionados.")
         status_label = ttk.Label(progress_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
-        status_label.pack(fill=tk.X, pady=(0, 5))
+        status_label.grid(row=0, column=0, sticky="ew", pady=(0, 5))
         
         # Barra de Progresso Geral
         self.progress = ttk.Progressbar(progress_frame, orient=tk.HORIZONTAL, mode='determinate')
-        self.progress.pack(fill=tk.X, pady=(0, 5))
+        self.progress.grid(row=1, column=0, sticky="ew", pady=(0, 5))
         
         # Label de porcentagem
         self.progress_label = ttk.Label(progress_frame, text="0%")
-        self.progress_label.pack(pady=(0, 5))
+        self.progress_label.grid(row=2, column=0, pady=(0, 5))
         
         # Log de Processamento
         log_frame = ttk.LabelFrame(scrollable_frame, text="Log de Processamento", padding=10)
-        log_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        log_frame.grid(row=7, column=0, sticky="nsew", pady=5)
+        log_frame.columnconfigure(0, weight=1)
+        log_frame.rowconfigure(0, weight=1)
         
         # Criar widget Text com scrollbar para o log
         log_text_frame = ttk.Frame(log_frame)
-        log_text_frame.pack(fill=tk.BOTH, expand=True)
+        log_text_frame.grid(row=0, column=0, sticky="nsew")
+        log_text_frame.columnconfigure(0, weight=1)
+        log_text_frame.rowconfigure(0, weight=1)
         
         # Text widget para o log
         self.log_text = tk.Text(log_text_frame, height=15, state=tk.DISABLED, 
                                wrap=tk.WORD, font=("Consolas", 9))
-        self.log_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.log_text.grid(row=0, column=0, sticky="nsew")
         
         # Scrollbar para o log
         log_scrollbar = ttk.Scrollbar(log_text_frame, orient=tk.VERTICAL, command=self.log_text.yview)
-        log_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        log_scrollbar.grid(row=0, column=1, sticky="ns")
         self.log_text.config(yscrollcommand=log_scrollbar.set)
         
         # Configurar tags para colorir o log
@@ -2947,15 +2986,15 @@ class UnifiedProcessorGUI:
         
         # Botão para limpar o log
         clear_log_btn = ttk.Button(log_frame, text="Limpar Log", command=self.clear_log)
-        clear_log_btn.pack(anchor=tk.E, pady=(5, 0))
+        clear_log_btn.grid(row=1, column=0, sticky="e", pady=(5, 0))
         
         # Botão para gerar PDF do relatório
         generate_pdf_btn = ttk.Button(log_frame, text="Gerar PDF do Relatório", command=self.generate_pdf_report)
-        generate_pdf_btn.pack(anchor=tk.E, pady=(5, 0))
+        generate_pdf_btn.grid(row=2, column=0, sticky="e", pady=(5, 0))
         
-        # Configurar scroll
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        # Configurar scroll - usar grid
+        canvas.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
         
         # Bind mouse wheel
         def _on_mousewheel(event):
