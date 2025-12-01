@@ -1,0 +1,44 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Ambiente Virtual ---
+venv/
+env/
+.env
+
+# --- IDEs (VS Code / Cursor / PyCharm) ---
+.vscode/
+.idea/
+*.swp
+
+# --- Logs ---
+*.log
+unified_processing.log
+
+# --- Arquivos de Dados e Saída (Excel e PDF) ---
+# Ignorar todos os Excel e PDF para não "pesar" o repositório com dados
+*.xlsx
+*.xls
+*.pdf
+
+# --- Pastas de Dados Específicas do Projeto ---
+# Garante que as pastas de entrada e saída locais não subam
+Integração_Abast/
+Integração_Mot/
+Ranking/
+Turnos_128/
+Resumo_Motorista_Cliente/
+Abst_Mot_Por_empresa/
+Ranking_Por_Empresa/
+Ranking_Integração/
+Ranking_Ouro_Mediano/
+Ranking_Km_Proporcional/
+Turnos_Integração/
+RMC_Destribuida/
+Consolidado_Empresas/
+
+# --- Sistema Operacional ---
+.DS_Store
+Thumbs.db
