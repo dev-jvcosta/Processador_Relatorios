@@ -15,12 +15,12 @@ import traceback
 from openpyxl import load_workbook
 import shutil
 # Imports para geração de PDF
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import A4  # letter não utilizado, removido
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER  # TA_LEFT e TA_RIGHT não utilizados, removidos
 
 # Configure logging to both file and console
 logging.basicConfig(
@@ -2709,7 +2709,7 @@ class UnifiedProcessorGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Processador Unificado de Relatórios")
-        self.root.geometry("1000x800")
+        self.root.geometry("1320x1030")
         
         # Caminhos padrão - modifique aqui para definir caminhos pré-preenchidos
         # Deixe vazio ("") para usar o diretório atual
@@ -2739,8 +2739,8 @@ class UnifiedProcessorGUI:
         
         self.create_widgets()
         # Ajuste automático do tamanho da janela após criar widgets
-        self.root.update_idletasks()
-        self.root.geometry("")
+        # self.root.update_idletasks()
+        # self.root.geometry("")
     
     def create_widgets(self):
         # Frame principal com scroll
@@ -2762,22 +2762,44 @@ class UnifiedProcessorGUI:
         
         # Diretório Base
         dir_frame = ttk.LabelFrame(scrollable_frame, text="Diretório Base dos Arquivos de Entrada", padding=10)
-        dir_frame.pack(fill=tk.X, pady=5)
+        dir_frame.pack(fill=tk.X, expand=True, pady=5)
+        # Configurar grid para responsividade
+        dir_frame.columnconfigure(1, weight=1)
+        dir_frame.rowconfigure(0, weight=1)
+        
+        # Label (coluna 0)
+        dir_label = ttk.Label(dir_frame, text="Caminho:")
+        dir_label.grid(row=0, column=0, padx=(0, 5), sticky="w", pady=10)
+        
+        # Entry (coluna 1) - responsivo
         self.dir_entry = ttk.Entry(dir_frame)
         # Pré-preenchido com o caminho padrão definido
         self.dir_entry.insert(0, self.base_dir)
-        self.dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.dir_entry.grid(row=0, column=1, sticky="ew", padx=(0, 5), pady=10)
+        
+        # Botão (coluna 2)
         browse_btn = ttk.Button(dir_frame, text="Procurar", command=self.browse_directory)
-        browse_btn.pack(side=tk.RIGHT)
+        browse_btn.grid(row=0, column=2, sticky="e", padx=5, pady=10)
 
         # Diretório de Saída
         output_dir_frame = ttk.LabelFrame(scrollable_frame, text="Diretório Base dos Arquivos de Saída", padding=10)
-        output_dir_frame.pack(fill=tk.X, pady=5)
+        output_dir_frame.pack(fill=tk.X, expand=True, pady=5)
+        # Configurar grid para responsividade
+        output_dir_frame.columnconfigure(1, weight=1)
+        output_dir_frame.rowconfigure(0, weight=1)
+        
+        # Label (coluna 0)
+        output_dir_label = ttk.Label(output_dir_frame, text="Caminho:")
+        output_dir_label.grid(row=0, column=0, padx=(0, 5), sticky="w", pady=10)
+        
+        # Entry (coluna 1) - responsivo
         self.output_dir_entry = ttk.Entry(output_dir_frame)
         self.output_dir_entry.insert(0, self.output_base_dir)
-        self.output_dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.output_dir_entry.grid(row=0, column=1, sticky="ew", padx=(0, 5), pady=10)
+        
+        # Botão (coluna 2)
         browse_output_btn = ttk.Button(output_dir_frame, text="Procurar", command=self.browse_output_directory)
-        browse_output_btn.pack(side=tk.RIGHT)
+        browse_output_btn.grid(row=0, column=2, sticky="e", padx=5, pady=10)
 
         # Campo de Versão
         version_frame = ttk.LabelFrame(scrollable_frame, text="Versão dos Arquivos (ex: _2.0, _1.0)", padding=10)
@@ -2928,15 +2950,20 @@ class UnifiedProcessorGUI:
     def browse_directory(self):
         # Obtém o caminho atual do campo ou usa um caminho padrão
         current_path = self.dir_entry.get().strip()
+        # Normaliza o caminho para garantir compatibilidade entre discos (C:, D:, etc.)
+        if current_path:
+            current_path = os.path.normpath(current_path)
         if not current_path or not os.path.exists(current_path):
             # Se não houver caminho válido, usa o diretório atual ou um padrão
-            current_path = os.getcwd()
+            current_path = os.path.normpath(os.getcwd())
         
         dir_path = filedialog.askdirectory(
             title="Selecione o diretório base dos arquivos de entrada",
             initialdir=current_path
         )
         if dir_path:
+            # Normaliza o caminho selecionado para garantir compatibilidade entre discos
+            dir_path = os.path.normpath(dir_path)
             self.dir_entry.delete(0, tk.END)
             self.dir_entry.insert(0, dir_path)
             self.base_dir = dir_path
@@ -2946,15 +2973,20 @@ class UnifiedProcessorGUI:
     def browse_output_directory(self):
         # Obtém o caminho atual do campo ou usa um caminho padrão
         current_path = self.output_dir_entry.get().strip()
+        # Normaliza o caminho para garantir compatibilidade entre discos (C:, D:, etc.)
+        if current_path:
+            current_path = os.path.normpath(current_path)
         if not current_path or not os.path.exists(current_path):
             # Se não houver caminho válido, usa o diretório atual ou um padrão
-            current_path = os.getcwd()
+            current_path = os.path.normpath(os.getcwd())
         
         dir_path = filedialog.askdirectory(
             title="Selecione o diretório base dos arquivos de saída",
             initialdir=current_path
         )
         if dir_path:
+            # Normaliza o caminho selecionado para garantir compatibilidade entre discos
+            dir_path = os.path.normpath(dir_path)
             self.output_dir_entry.delete(0, tk.END)
             self.output_dir_entry.insert(0, dir_path)
             self.output_base_dir = dir_path
@@ -3537,15 +3569,40 @@ class UnifiedProcessorGUI:
         self.log_text.delete(1.0, tk.END)
         self.log_text.config(state=tk.DISABLED)
     
-    def add_log_entry(self, message, level="info"):
-        """Adiciona uma entrada no log com timestamp e formatação"""
+    def add_log_entry(self, message, level="info", log_level=None):
+        """
+        Adiciona uma entrada no log com timestamp, nível de log e formatação
+        
+        Args:
+            message: Mensagem a ser exibida no log
+            level: Nível customizado da interface ("info", "success", "error", "warning", "header", "start", "processing")
+            log_level: Nível do logging padrão (logging.INFO, logging.WARNING, logging.ERROR, logging.DEBUG)
+                      Se None, será mapeado automaticamente baseado no parâmetro 'level'
+        """
         import datetime
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         
+        # Mapear nível customizado para nível de logging se não fornecido
+        if log_level is None:
+            level_mapping = {
+                "success": logging.INFO,
+                "error": logging.ERROR,
+                "warning": logging.WARNING,
+                "header": logging.INFO,
+                "start": logging.INFO,
+                "processing": logging.INFO,
+                "info": logging.INFO
+            }
+            log_level = level_mapping.get(level, logging.INFO)
+        
+        # Obter nome do nível de log para exibição
+        log_level_name = logging.getLevelName(log_level)
+        
         self.log_text.config(state=tk.NORMAL)
         
-        # Adicionar timestamp
+        # Adicionar timestamp e nível de log
         self.log_text.insert(tk.END, f"[{timestamp}] ", "info")
+        self.log_text.insert(tk.END, f"[{log_level_name}] ", "info")
         
         # Determinar ícone e cor baseado no nível
         if level == "success":
@@ -3595,10 +3652,12 @@ class UnifiedProcessorGUI:
         if completed is not None and total is not None:
             self.completed_tasks = completed
             self.total_tasks = total
-            percentage = (completed / total * 100) if total > 0 else 0
+            # Corrigir cálculo: usar (completed + 1) para mostrar progresso atual
+            percentage = ((completed + 1) / total * 100) if total > 0 else 0
             self.progress["value"] = percentage
-            self.progress_label.config(text=f"{percentage:.1f}% ({completed}/{total})")
+            self.progress_label.config(text=f"{percentage:.1f}% ({completed + 1}/{total})")
         
+        # Forçar redesenho imediato da barra de progresso
         self.root.update_idletasks()
     
     def run_processing(self, report_type, company, periods_to_process):
@@ -3609,8 +3668,9 @@ class UnifiedProcessorGUI:
         
         for i, period in enumerate(periods_to_process):
             current_task = f"{company} - {period} ({i+1}/{total_periods}) [{report_type}]"
+            # Atualizar progresso e forçar redesenho imediato
             self.update_progress(current_task, i, total_periods)
-            self.root.update_idletasks()
+            self.root.update_idletasks()  # CRUCIAL: Força o Tkinter a redesenhar a barra imediatamente
             
             try:
                 if report_type == "Abst_Mot_Por_empresa":
@@ -3678,6 +3738,10 @@ class UnifiedProcessorGUI:
             except Exception as e:
                 logging.error(f"Erro crítico ao processar {company} - {period}: {traceback.format_exc()}")
                 self.add_log_entry(f"❌ Erro crítico em {company} - {period}: {str(e)}", "error")
+            
+            # Pequeno delay para visualização da animação da barra de progresso
+            tm.sleep(0.05)
+            
             # Atualiza progresso após cada período
             self.update_progress(f"{company} - {period} [{report_type}]", i+1, total_periods)
             self.root.update_idletasks()
