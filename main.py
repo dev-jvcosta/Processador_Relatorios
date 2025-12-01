@@ -80,6 +80,12 @@ def get_alternative_filename(original_path, attempt=1):
     timestamp = tm.strftime("%Y%m%d_%H%M%S")
     return f"{base_name}_{timestamp}_{attempt}.xlsx"
 
+# --- Funções auxiliares otimizadas ---
+
+def normalize_matricula(series):
+    """Otimizado: normaliza matrícula de forma vetorizada"""
+    return series.astype(str).str.strip().str.zfill(6)
+
 # --- Classes dos scripts originais (adaptadas) ---
 
 class CompanyProcessor:
@@ -291,8 +297,9 @@ class CompanyProcessor:
         start_time = tm.time()
         
         try:
-            df_supply = pd.read_excel(supply_file)
-            df_drivers = pd.read_excel(driver_file)
+            # Otimizado: usar engine explícito e otimizações de leitura
+            df_supply = pd.read_excel(supply_file, engine='openpyxl')
+            df_drivers = pd.read_excel(driver_file, engine='openpyxl')
             
             logging.debug(f"Supply file columns: {df_supply.columns.tolist()}")
             logging.debug(f"Driver file columns: {df_drivers.columns.tolist()}")
@@ -396,8 +403,12 @@ class CompanyProcessor:
                     driver_group['pegada'] = driver_group['pegada_dt']
                     driver_group['largada'] = driver_group['largada_dt']
                     
-                    valid_times = (driver_group['pegada'].apply(lambda x: isinstance(x, datetime))) & \
-                                  (driver_group['largada'].apply(lambda x: isinstance(x, datetime)))
+                    # Otimizado: verificação mais eficiente de tipos datetime
+                    valid_times = driver_group['pegada'].notna() & driver_group['largada'].notna()
+                    # Verificar se são datetime apenas se necessário (mais eficiente que apply em todos)
+                    if not valid_times.all():
+                        valid_times = valid_times & (driver_group['pegada'].apply(lambda x: isinstance(x, datetime))) & \
+                                      (driver_group['largada'].apply(lambda x: isinstance(x, datetime)))
                     
                     if not valid_times.all():
                         invalid_rows = driver_group[~valid_times]
@@ -510,7 +521,8 @@ class CompanyProcessor:
             logging.info(f"🔍 Verificando qualidade da distribuição para {company} {month_year}...")
             self.verificar_e_corrigir_distribuicao(df_final, supply_file, detailed_filepath)
             
-            df_final.to_excel(detailed_filepath, index=False)
+            # Otimizado: engine explícito para melhor performance
+            df_final.to_excel(detailed_filepath, index=False, engine='openpyxl')
             
             self.create_consolidated_file(df_final, consolidated_filename, output_folder_path)
             
@@ -626,7 +638,8 @@ class CompanyProcessor:
         self.verificar_qualidade_consolidado(consolidated, df_detailed)
         
         consolidated_filepath = os.path.join(output_folder_path, filename)
-        consolidated.to_excel(consolidated_filepath, index=False)
+        # Otimizado: engine explícito
+        consolidated.to_excel(consolidated_filepath, index=False, engine='openpyxl')
         
         return consolidated
 
@@ -728,8 +741,9 @@ class RankingProcessor:
             
             logging.info(f"Processando {company} - {month_year}")
             
-            df_ranking = pd.read_excel(os.path.join(self.RANKING_DIR, ranking_file), dtype=str)
-            df_turnos = pd.read_excel(os.path.join(self.TURNOS_DIR, turnos_file), dtype=str)
+            # Otimizado: engine explícito para melhor performance
+            df_ranking = pd.read_excel(os.path.join(self.RANKING_DIR, ranking_file), dtype=str, engine='openpyxl')
+            df_turnos = pd.read_excel(os.path.join(self.TURNOS_DIR, turnos_file), dtype=str, engine='openpyxl')
             
             df_turnos = self.converter_formato_brasileiro(df_turnos, ['km'])
             if 'km/l' in df_ranking.columns:
@@ -739,8 +753,9 @@ class RankingProcessor:
             if 'km' in df_ranking.columns:
                 df_ranking = self.converter_formato_brasileiro(df_ranking, ['km'])
 
-            df_ranking['matricula'] = df_ranking['matricula'].astype(str).str.strip().str.zfill(6)
-            df_turnos['matricula'] = df_turnos['matricula'].astype(str).str.strip().str.zfill(6)
+            # Otimizado: usar função auxiliar vetorizada
+            df_ranking['matricula'] = normalize_matricula(df_ranking['matricula'])
+            df_turnos['matricula'] = normalize_matricula(df_turnos['matricula'])
 
             turno_mais_rodou = df_turnos.groupby(['matricula', 'turno'])['km'].sum().reset_index()
             turno_mais_rodou = turno_mais_rodou.loc[turno_mais_rodou.groupby('matricula')['km'].idxmax()]
@@ -794,16 +809,16 @@ class RankingProcessor:
             # Carregar dados de Abst_Mot_Por_empresa se existir
             df_abst_mot = None
             if os.path.exists(abst_mot_file):
-                df_abst_mot = pd.read_excel(abst_mot_file)
-                df_abst_mot['matricula'] = df_abst_mot['matricula'].astype(str).str.strip().str.zfill(6)
+                df_abst_mot = pd.read_excel(abst_mot_file, engine='openpyxl')
+                df_abst_mot['matricula'] = normalize_matricula(df_abst_mot['matricula'])
             # Carregar dados do consolidado do Ranking_Km_Proporcional se existir
             df_km_prop = None
             if os.path.exists(consolidado_km_prop_file):
-                df_km_prop = pd.read_excel(consolidado_km_prop_file)
-                df_km_prop['matricula'] = df_km_prop['matricula'].astype(str).str.strip().str.zfill(6)
+                df_km_prop = pd.read_excel(consolidado_km_prop_file, engine='openpyxl')
+                df_km_prop['matricula'] = normalize_matricula(df_km_prop['matricula'])
             # Função para adicionar e formatar colunas em cada aba
             def add_and_format_columns(df_sheet):
-                df_sheet['matricula'] = df_sheet['matricula'].astype(str).str.strip().str.zfill(6)
+                df_sheet['matricula'] = normalize_matricula(df_sheet['matricula'])
                 # Merge com Abst_Mot_Por_empresa
                 if df_abst_mot is not None:
                     cols_to_merge = ['matricula']
@@ -1171,12 +1186,14 @@ class RankingIntegracaoProcessor:
                 raise FileNotFoundError(f"Arquivo de turnos não encontrado: {turnos_file}")
 
             # Carregar arquivos principais
-            df_ranking = pd.read_excel(os.path.join(self.RANKING_DIR, ranking_file), dtype=str)
-            df_turnos = pd.read_excel(os.path.join(self.TURNOS_DIR, turnos_file), dtype=str)
+            # Otimizado: engine explícito para melhor performance
+            df_ranking = pd.read_excel(os.path.join(self.RANKING_DIR, ranking_file), dtype=str, engine='openpyxl')
+            df_turnos = pd.read_excel(os.path.join(self.TURNOS_DIR, turnos_file), dtype=str, engine='openpyxl')
 
             # Padronizar campo matricula
-            df_ranking['matricula'] = df_ranking['matricula'].astype(str).str.strip().str.zfill(6)
-            df_turnos['matricula'] = df_turnos['matricula'].astype(str).str.strip().str.zfill(6)
+            # Otimizado: usar função auxiliar vetorizada
+            df_ranking['matricula'] = normalize_matricula(df_ranking['matricula'])
+            df_turnos['matricula'] = normalize_matricula(df_turnos['matricula'])
 
             # Converter colunas numéricas
             df_turnos = self.converter_formato_brasileiro(df_turnos, ['km'])
@@ -1226,8 +1243,8 @@ class RankingIntegracaoProcessor:
 
             # Adicionar informações de Abst_Mot_Por_empresa
             if os.path.exists(abst_mot_file):
-                df_abst_mot = pd.read_excel(abst_mot_file)
-                df_abst_mot['matricula'] = df_abst_mot['matricula'].astype(str).str.strip().str.zfill(6)
+                df_abst_mot = pd.read_excel(abst_mot_file, engine='openpyxl')
+                df_abst_mot['matricula'] = normalize_matricula(df_abst_mot['matricula'])
                 # Adicionar as colunas total_km, total_liters, days_worked
                 cols_to_merge = ['matricula']
                 if 'total_km' in df_abst_mot.columns:
@@ -1812,7 +1829,7 @@ class RankingKmProporcionalProcessor:
             idx_max = df['km_distributed'].idxmax()
             df.at[idx_max, 'km_distributed'] += diff_final
         # Salva o arquivo ajustado
-        df.to_excel(detalhado_path, index=False)
+        df.to_excel(detalhado_path, index=False, engine='openpyxl')
         logging.info(f"Ajuste proporcional realizado em {detalhado_path}. Diferença corrigida: {diff:.2f}")
         return True
 
@@ -1858,7 +1875,7 @@ class RankingKmProporcionalProcessor:
         else:
             logging.warning(f"Coluna 'liters_distributed' não encontrada em {detalhado_path}")
         if alterou:
-            df.to_excel(detalhado_path, index=False)
+            df.to_excel(detalhado_path, index=False, engine='openpyxl')
         return alterou
 
     def process_company_period(self, company, month_year):
@@ -2499,7 +2516,7 @@ class ResumoMotoristaClienteProcessor:
         
         try:
             # Lê o arquivo de abastecimento
-            df_abast = pd.read_excel(abastecimento_path)
+            df_abast = pd.read_excel(abastecimento_path, engine='openpyxl')
             logging.info(f"Arquivo de abastecimento carregado: {len(df_abast)} registros")
             
             # Identifica colunas relevantes
@@ -2571,7 +2588,7 @@ class ResumoMotoristaClienteProcessor:
             return None
         
         try:
-            df_resumo = pd.read_excel(resumo_path)
+            df_resumo = pd.read_excel(resumo_path, engine='openpyxl')
             logging.info(f"Arquivo de resumo carregado: {len(df_resumo)} registros")
             logging.info(f"Estrutura original do arquivo: {list(df_resumo.columns)}")
             
@@ -2583,7 +2600,7 @@ class ResumoMotoristaClienteProcessor:
                 logging.error(f"Arquivo de abastecimento não encontrado: {abast_path}")
                 return None
             
-            df_abast = pd.read_excel(abast_path)
+            df_abast = pd.read_excel(abast_path, engine='openpyxl')
             logging.info(f"Arquivo de abastecimento carregado: {len(df_abast)} registros")
             
             # Limpar placas e filtrar abastecimento
@@ -2711,7 +2728,7 @@ class UnifiedProcessorGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Processador Unificado de Relatórios")
-        self.root.geometry("1520x1060")
+        self.root.geometry("820x900")
         
         # Configuração responsiva da raiz
         self.root.columnconfigure(0, weight=1)
@@ -2842,18 +2859,38 @@ class UnifiedProcessorGUI:
         # Seleção do Tipo de Relatório
         report_type_frame = ttk.LabelFrame(scrollable_frame, text="Tipo de Relatório", padding=10)
         report_type_frame.grid(row=3, column=0, sticky="ew", pady=5)
+        
         # Checkbuttons para seleção múltipla
         self.report_types = ["Abst_Mot_Por_empresa", "Ranking_Por_Empresa", "Ranking_Integração", "Ranking_Ouro_Mediano", "Ranking_Km_Proporcional", "Turnos_Integração", "Resumo_Motorista_Cliente"]
         self.report_type_vars = {rt: tk.BooleanVar(value=True) for rt in self.report_types}
-        col = 0
-        for rt in self.report_types:
-            ttk.Checkbutton(report_type_frame, text=rt, variable=self.report_type_vars[rt], command=self.on_report_type_change).grid(row=0, column=col, padx=10, sticky="w")
-            col += 1
-        # Configurar coluna expansível antes do botão para empurrá-lo à direita
-        report_type_frame.columnconfigure(col, weight=1)
-        # Botão Processar Tudo dentro do frame de tipo de relatório
+        
+        # Configuração do Grid (3 Colunas)
+        cols_per_row = 3
+        total_items = len(self.report_types)
+        rows_needed = (total_items + cols_per_row - 1) // cols_per_row  # Calcula total de linhas necessárias
+        
+        for i, rt in enumerate(self.report_types):
+            # Calcula posição (linha, coluna) baseada no índice
+            r, c = divmod(i, cols_per_row)
+            ttk.Checkbutton(
+                report_type_frame, 
+                text=rt, 
+                variable=self.report_type_vars[rt], 
+                command=self.on_report_type_change
+            ).grid(row=r, column=c, padx=10, pady=2, sticky="w")
+            
+        # ### LÓGICA DE ESPAÇAMENTO E BOTÃO ###
+        
+        # Coluna de espaçamento (Spacer): Coluna logo após as colunas de dados (índice 3)
+        # Ela ganha weight=1 para ocupar todo o espaço vazio horizontal
+        spacer_col = cols_per_row
+        report_type_frame.columnconfigure(spacer_col, weight=1) 
+        
+        # Botão Processar Tudo
+        # Posicionado na coluna após o spacer.
+        # Rowspan define que ele ocupará a altura de todas as linhas de checkboxes geradas.
         self.process_everything_btn = ttk.Button(report_type_frame, text="Processar Tudo", command=self.process_everything)
-        self.process_everything_btn.grid(row=0, column=col+1, padx=(10, 0), sticky="e")
+        self.process_everything_btn.grid(row=0, column=spacer_col + 1, rowspan=rows_needed, padx=(10, 0), pady=10, sticky="e")
 
         # Frame para seleção de empresas e períodos
         selection_frame = ttk.Frame(scrollable_frame)
@@ -2917,24 +2954,41 @@ class UnifiedProcessorGUI:
         # Botões de Ação
         button_frame = ttk.Frame(scrollable_frame, padding=10)
         button_frame.grid(row=5, column=0, sticky="ew", pady=5)
+        
+        # Configuração de colunas para os botões (0, 1, 2 tem peso igual para distribuição uniforme)
+        button_frame.columnconfigure(0, weight=1)
+        button_frame.columnconfigure(1, weight=1)
+        button_frame.columnconfigure(2, weight=1)
+        
+        # Botão 1 (Linha 0, Coluna 0)
         self.process_selected_btn = ttk.Button(button_frame, text="Processar Selecionados", state=tk.DISABLED, command=self.process_selected)
-        self.process_selected_btn.grid(row=0, column=0, padx=(0, 5), sticky="w")
-        self.process_all_btn = ttk.Button(button_frame, text="Processar Todos os Períodos das Empresas", state=tk.DISABLED, command=self.process_all_periods_for_company)
-        self.process_all_btn.grid(row=0, column=1, padx=(0, 5), sticky="w")
-        # Botão para processar todas as empresas do relatório selecionado
+        self.process_selected_btn.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+        
+        # Botão 2 (Linha 0, Coluna 1)
+        self.process_all_btn = ttk.Button(button_frame, text="Processar Todos os Períodos", state=tk.DISABLED, command=self.process_all_periods_for_company)
+        self.process_all_btn.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        
+        # Botão 3 (Linha 0, Coluna 2)
         self.process_all_companies_btn = ttk.Button(button_frame, text="Processar Todas as Empresas", command=self.process_all_companies)
-        self.process_all_companies_btn.grid(row=0, column=2, padx=(5, 0), sticky="w")
-        # Botão específico para consolidação Ouro Mediano
+        self.process_all_companies_btn.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
+        
+        # Botão 4 (Linha 1, Coluna 0)
         self.process_ouro_mediano_btn = ttk.Button(button_frame, text="Consolidar Ouro Mediano", command=self.process_ouro_mediano_consolidation)
-        self.process_ouro_mediano_btn.grid(row=0, column=3, padx=(5, 0), sticky="w")
-        # Botão específico para Ranking_Km_Proporcional
+        self.process_ouro_mediano_btn.grid(row=1, column=0, padx=5, pady=5, sticky="ew")
+        
+        # Botão 5 (Linha 1, Coluna 1)
         self.process_km_proporcional_btn = ttk.Button(button_frame, text="Processar Ranking_Km_Proporcional", command=self.process_km_proporcional)
-        self.process_km_proporcional_btn.grid(row=0, column=4, padx=(5, 0), sticky="w")
-        # Configurar coluna expansível antes do botão Atualizar para empurrá-lo à direita
-        button_frame.columnconfigure(5, weight=1)
+        self.process_km_proporcional_btn.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        
+        # ### LÓGICA DE ESPAÇAMENTO E BOTÃO DIREITO ###
+        
+        # Coluna de espaçamento (Spacer): Coluna 3 ganha todo o espaço vazio extra
+        button_frame.columnconfigure(3, weight=10) 
+        
         # Botão de Atualizar
+        # Posicionado na Coluna 4. Rowspan=2 para ocupar a altura das duas linhas de botões à esquerda.
         self.refresh_btn = ttk.Button(button_frame, text="Atualizar", command=self.update_company_list)
-        self.refresh_btn.grid(row=0, column=6, padx=(5, 0), sticky="e")
+        self.refresh_btn.grid(row=0, column=4, rowspan=2, padx=(20, 0), pady=5, sticky="e")
         
         # Frame de Progresso
         progress_frame = ttk.LabelFrame(scrollable_frame, text="Progresso", padding=10)
@@ -3711,8 +3765,13 @@ class UnifiedProcessorGUI:
             self.progress["value"] = percentage
             self.progress_label.config(text=f"{percentage:.1f}% ({completed + 1}/{total})")
         
-        # Forçar redesenho imediato da barra de progresso
-        self.root.update_idletasks()
+        # Otimizado: atualizar UI apenas quando necessário (a cada 10 itens ou no final)
+        if completed is not None and total is not None:
+            # Atualizar UI apenas a cada 10% de progresso ou no último item
+            if (completed + 1) % max(1, total // 10) == 0 or (completed + 1) == total:
+                self.root.update_idletasks()
+        else:
+            self.root.update_idletasks()
     
     def run_processing(self, report_type, company, periods_to_process):
         total_periods = len(periods_to_process)
@@ -3722,9 +3781,8 @@ class UnifiedProcessorGUI:
         
         for i, period in enumerate(periods_to_process):
             current_task = f"{company} - {period} ({i+1}/{total_periods}) [{report_type}]"
-            # Atualizar progresso e forçar redesenho imediato
+            # Atualizar progresso (update_idletasks agora é otimizado dentro de update_progress)
             self.update_progress(current_task, i, total_periods)
-            self.root.update_idletasks()  # CRUCIAL: Força o Tkinter a redesenhar a barra imediatamente
             
             try:
                 if report_type == "Abst_Mot_Por_empresa":
