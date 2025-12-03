@@ -2994,6 +2994,10 @@ class UnifiedProcessorGUI:
         self.process_km_proporcional_btn = ttk.Button(button_frame, text="Processar Ranking_Km_Proporcional", command=self.process_km_proporcional)
         self.process_km_proporcional_btn.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
         
+        # Botão 6 (Linha 1, Coluna 2) - Relatório Motoristas Insuficientes
+        self.rpp_insuficientes_btn = ttk.Button(button_frame, text="Gerar Relatório Insuficientes", command=self.open_rpp_insuficientes_modal)
+        self.rpp_insuficientes_btn.grid(row=1, column=2, padx=5, pady=5, sticky="ew")
+        
         # ### LÓGICA DE ESPAÇAMENTO E BOTÃO DIREITO ###
         
         # Coluna de espaçamento (Spacer): Coluna 3 ganha todo o espaço vazio extra
@@ -4055,6 +4059,434 @@ class UnifiedProcessorGUI:
             logging.error(f"Traceback completo: {traceback.format_exc()}")
             self.status_var.set("❌ Erro no processamento Ranking_Km_Proporcional")
             messagebox.showerror("Erro", f"Erro no processamento Ranking_Km_Proporcional:\n{str(e)}")
+
+    def open_rpp_insuficientes_modal(self):
+        """Abre o modal para configurar a geração do Relatório de Motoristas Insuficientes"""
+        # Criar janela modal
+        modal = tk.Toplevel(self.root)
+        modal.title("Gerar Relatório de Motoristas Insuficientes")
+        modal.geometry("550x280")
+        modal.resizable(False, False)
+        modal.transient(self.root)  # Modal sempre acima da janela principal
+        modal.grab_set()  # Bloqueia interação com a janela principal
+        
+        # Centralizar o modal
+        modal.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (modal.winfo_width() // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (modal.winfo_height() // 2)
+        modal.geometry(f"+{x}+{y}")
+        
+        # Frame principal do modal
+        modal_frame = ttk.Frame(modal, padding=20)
+        modal_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Título/Descrição
+        desc_label = ttk.Label(modal_frame, text="Configure os parâmetros para gerar o relatório consolidado de motoristas insuficientes:", wraplength=500)
+        desc_label.grid(row=0, column=0, columnspan=3, pady=(0, 15), sticky="w")
+        
+        # Campo: Caminho para Ranking_Por_Empresa
+        ttk.Label(modal_frame, text="Caminho Ranking_Por_Empresa:").grid(row=1, column=0, sticky="w", pady=5)
+        
+        caminho_entry = ttk.Entry(modal_frame, width=50)
+        # Preencher com o caminho padrão baseado no diretório de saída
+        default_ranking_path = os.path.join(self.output_base_dir, "Ranking_Por_Empresa") if self.output_base_dir else ""
+        caminho_entry.insert(0, default_ranking_path)
+        caminho_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        
+        def browse_ranking_path():
+            dir_path = filedialog.askdirectory(
+                title="Selecione a pasta Ranking_Por_Empresa",
+                initialdir=default_ranking_path if os.path.exists(default_ranking_path) else self.output_base_dir
+            )
+            if dir_path:
+                caminho_entry.delete(0, tk.END)
+                caminho_entry.insert(0, dir_path)
+        
+        ttk.Button(modal_frame, text="Procurar", command=browse_ranking_path).grid(row=1, column=2, padx=5, pady=5)
+        
+        # Campo: Ano
+        ttk.Label(modal_frame, text="Ano:").grid(row=2, column=0, sticky="w", pady=5)
+        ano_entry = ttk.Entry(modal_frame, width=20)
+        ano_entry.insert(0, str(datetime.now().year))  # Ano atual como padrão
+        ano_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        
+        # Campo: Mês
+        ttk.Label(modal_frame, text="Mês:").grid(row=3, column=0, sticky="w", pady=5)
+        meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
+                 "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+        mes_combobox = ttk.Combobox(modal_frame, values=meses, state="readonly", width=17)
+        mes_combobox.set(meses[datetime.now().month - 1])  # Mês atual como padrão
+        mes_combobox.grid(row=3, column=1, sticky="w", padx=5, pady=5)
+        
+        # Configurar expansão da coluna 1
+        modal_frame.columnconfigure(1, weight=1)
+        
+        # Frame para botões de ação
+        btn_frame = ttk.Frame(modal_frame)
+        btn_frame.grid(row=4, column=0, columnspan=3, pady=(20, 0))
+        
+        def gerar_relatorio():
+            caminho = caminho_entry.get().strip()
+            ano = ano_entry.get().strip()
+            mes = mes_combobox.get()
+            
+            # Validações
+            if not caminho:
+                messagebox.showwarning("Aviso", "Por favor, informe o caminho para a pasta Ranking_Por_Empresa.", parent=modal)
+                return
+            if not os.path.exists(caminho):
+                messagebox.showwarning("Aviso", f"O caminho informado não existe:\n{caminho}", parent=modal)
+                return
+            if not ano or not ano.isdigit():
+                messagebox.showwarning("Aviso", "Por favor, informe um ano válido.", parent=modal)
+                return
+            if not mes:
+                messagebox.showwarning("Aviso", "Por favor, selecione um mês.", parent=modal)
+                return
+            
+            # Fechar modal e processar
+            modal.destroy()
+            self.process_rpp_insuficientes(caminho, ano, mes)
+        
+        ttk.Button(btn_frame, text="Gerar Relatório", command=gerar_relatorio).pack(side=tk.LEFT, padx=10)
+        ttk.Button(btn_frame, text="Cancelar", command=modal.destroy).pack(side=tk.LEFT, padx=10)
+        
+        # Foco no primeiro campo
+        caminho_entry.focus_set()
+
+    def process_rpp_insuficientes(self, ranking_path, ano, mes):
+        """Processa e gera o Relatório de Motoristas Insuficientes"""
+        try:
+            self.add_log_entry("=" * 60, "info")
+            self.add_log_entry(f"🚀 Iniciando geração do Relatório de Motoristas Insuficientes", "header")
+            self.add_log_entry(f"📁 Caminho: {ranking_path}", "info")
+            self.add_log_entry(f"📅 Período: {mes}/{ano}", "info")
+            logging.info(f"Iniciando Relatório de Motoristas Insuficientes - Caminho: {ranking_path}, Período: {mes}/{ano}")
+            
+            self.update_progress("Iniciando processamento de Motoristas Insuficientes...", 0, 1)
+            self.root.update_idletasks()
+            
+            # Verificar se o diretório base existe
+            if not os.path.exists(ranking_path):
+                msg_erro = f"O diretório base não existe:\n{ranking_path}"
+                messagebox.showerror("Erro", msg_erro)
+                self.add_log_entry(f"❌ {msg_erro}", "error")
+                logging.error(f"Diretório base não existe: {ranking_path}")
+                return
+            
+            # Identificar empresas (subpastas dentro de Ranking_Por_Empresa)
+            empresas = []
+            try:
+                for item in os.listdir(ranking_path):
+                    item_path = os.path.join(ranking_path, item)
+                    if os.path.isdir(item_path):
+                        empresas.append(item)
+                logging.info(f"Empresas encontradas no diretório: {empresas}")
+            except Exception as e:
+                logging.error(f"Erro ao listar diretório {ranking_path}: {str(e)}")
+                raise Exception(f"Erro ao listar diretório {ranking_path}: {str(e)}")
+            
+            if not empresas:
+                msg_aviso = f"Nenhuma subpasta de empresa encontrada em:\n{ranking_path}\n\nVerifique se o caminho está correto."
+                messagebox.showwarning("Aviso", msg_aviso)
+                self.add_log_entry("⚠️ Nenhuma empresa (subpasta) encontrada no diretório.", "warning")
+                logging.warning(f"Nenhuma subpasta de empresa encontrada em: {ranking_path}")
+                return
+            
+            self.add_log_entry(f"📊 Empresas encontradas: {len(empresas)} - {', '.join(sorted(empresas))}", "info")
+            
+            # Dicionário para armazenar DataFrames de cada empresa
+            dados_empresas = {}
+            empresas_processadas = 0
+            empresas_com_erro = []
+            empresas_sem_pasta = []
+            empresas_sem_arquivo = []
+            
+            for i, empresa in enumerate(empresas):
+                self.update_progress(f"Processando {empresa}...", i, len(empresas))
+                self.root.update_idletasks()
+                
+                # Construir caminho: Empresa/Ano/Mês
+                caminho_ano = os.path.join(ranking_path, empresa, ano)
+                caminho_mes = os.path.join(ranking_path, empresa, ano, mes)
+                
+                # Verificar se a pasta do ano existe
+                if not os.path.exists(caminho_ano):
+                    self.add_log_entry(f"⚠️ Pasta do ano {ano} não encontrada para {empresa}", "warning")
+                    logging.warning(f"Pasta do ano não encontrada: {caminho_ano}")
+                    empresas_sem_pasta.append(f"{empresa} (pasta {ano} não existe)")
+                    continue
+                
+                # Verificar se a pasta do mês existe
+                if not os.path.exists(caminho_mes):
+                    self.add_log_entry(f"⚠️ Pasta do mês {mes} não encontrada para {empresa}/{ano}", "warning")
+                    logging.warning(f"Pasta do mês não encontrada: {caminho_mes}")
+                    empresas_sem_pasta.append(f"{empresa} (pasta {ano}/{mes} não existe)")
+                    continue
+                
+                # Listar todos os arquivos na pasta do mês para debug
+                try:
+                    arquivos_na_pasta = os.listdir(caminho_mes)
+                    logging.info(f"Arquivos encontrados em {caminho_mes}: {arquivos_na_pasta}")
+                except Exception as e:
+                    self.add_log_entry(f"❌ Erro ao listar pasta {caminho_mes}: {str(e)}", "error")
+                    logging.error(f"Erro ao listar pasta {caminho_mes}: {str(e)}")
+                    empresas_com_erro.append(f"{empresa} (erro ao listar pasta: {str(e)})")
+                    continue
+                
+                # Procurar arquivo .xlsx na pasta do mês
+                arquivo_encontrado = None
+                arquivos_xlsx = []
+                
+                for arquivo in arquivos_na_pasta:
+                    if arquivo.endswith('.xlsx') and not arquivo.startswith('~$'):
+                        arquivos_xlsx.append(arquivo)
+                        # Padrão esperado: Ranking_Por_Empresa_{Empresa}_{Mes}_{Ano}.xlsx
+                        # Aceita variações com sufixo de versão (ex: _1.0.xlsx)
+                        arquivo_encontrado = os.path.join(caminho_mes, arquivo)
+                        break
+                
+                # Se não encontrou arquivo .xlsx, verificar se há outros arquivos
+                if not arquivo_encontrado:
+                    if arquivos_na_pasta:
+                        self.add_log_entry(f"⚠️ Pasta {empresa}/{ano}/{mes} contém arquivos, mas nenhum .xlsx válido: {arquivos_na_pasta}", "warning")
+                        logging.warning(f"Nenhum .xlsx válido em {caminho_mes}. Arquivos encontrados: {arquivos_na_pasta}")
+                    else:
+                        self.add_log_entry(f"⚠️ Pasta {empresa}/{ano}/{mes} está vazia (nenhum arquivo encontrado)", "warning")
+                        logging.warning(f"Pasta vazia: {caminho_mes}")
+                    empresas_sem_arquivo.append(f"{empresa} (nenhum .xlsx em {ano}/{mes})")
+                    continue
+                
+                # Ler o arquivo Excel
+                try:
+                    self.add_log_entry(f"📖 Lendo arquivo: {os.path.basename(arquivo_encontrado)}", "info")
+                    logging.info(f"Lendo arquivo Excel: {arquivo_encontrado}")
+                    
+                    df = pd.read_excel(arquivo_encontrado)
+                    
+                    if df.empty:
+                        self.add_log_entry(f"⚠️ Arquivo vazio para {empresa}: {os.path.basename(arquivo_encontrado)}", "warning")
+                        logging.warning(f"Arquivo Excel vazio: {arquivo_encontrado}")
+                        empresas_sem_arquivo.append(f"{empresa} (arquivo .xlsx vazio)")
+                        continue
+                    
+                    dados_empresas[empresa] = {
+                        'df': df,
+                        'arquivo': arquivo_encontrado
+                    }
+                    empresas_processadas += 1
+                    self.add_log_entry(f"✅ {empresa}: {len(df)} registros carregados de {os.path.basename(arquivo_encontrado)}", "success")
+                    logging.info(f"Empresa {empresa} carregada com sucesso: {len(df)} registros")
+                    
+                except Exception as e:
+                    self.add_log_entry(f"❌ Erro ao ler arquivo de {empresa}: {str(e)}", "error")
+                    logging.error(f"Erro ao ler arquivo {arquivo_encontrado}: {str(e)}")
+                    empresas_com_erro.append(f"{empresa} (erro na leitura: {str(e)})")
+                    continue
+            
+            # Verificar se encontrou dados
+            if not dados_empresas:
+                # Criar mensagem detalhada de erro
+                msg_detalhes = []
+                if empresas_sem_pasta:
+                    msg_detalhes.append(f"• Empresas sem pasta {ano}/{mes}: {len(empresas_sem_pasta)}")
+                if empresas_sem_arquivo:
+                    msg_detalhes.append(f"• Empresas sem arquivo .xlsx: {len(empresas_sem_arquivo)}")
+                if empresas_com_erro:
+                    msg_detalhes.append(f"• Empresas com erro: {len(empresas_com_erro)}")
+                
+                msg_completa = "Nenhum dado encontrado para processar.\n\n"
+                if msg_detalhes:
+                    msg_completa += "Detalhes:\n" + "\n".join(msg_detalhes)
+                msg_completa += "\n\nVerifique o log para mais informações."
+                
+                messagebox.showwarning("Aviso - Nenhum Dado Encontrado", msg_completa)
+                self.add_log_entry("⚠️ Nenhum dado encontrado para processar.", "warning")
+                logging.warning(f"Nenhum dado encontrado. Sem pasta: {empresas_sem_pasta}, Sem arquivo: {empresas_sem_arquivo}, Com erro: {empresas_com_erro}")
+                self.update_progress("Processamento finalizado sem dados", 1, 1)
+                return
+            
+            # Criar diretório de saída: Saída/RPP_Insuficientes
+            # Usar o diretório pai do Ranking_Por_Empresa ou o diretório de saída configurado
+            dir_saida = os.path.dirname(ranking_path)  # Diretório pai de Ranking_Por_Empresa
+            if not dir_saida or dir_saida == ranking_path:
+                dir_saida = self.output_base_dir if self.output_base_dir else os.getcwd()
+            
+            dir_insuficientes = os.path.join(dir_saida, "RPP_Insuficientes")
+            os.makedirs(dir_insuficientes, exist_ok=True)
+            
+            # Nome do arquivo de saída
+            arquivo_saida = os.path.join(dir_insuficientes, "Relatório_Por_Empresa_Insuficientes.xlsx")
+            
+            self.add_log_entry(f"📁 Criando relatório em: {arquivo_saida}", "info")
+            
+            # Criar workbook
+            wb = Workbook()
+            
+            # Remover a aba padrão criada automaticamente
+            default_sheet = wb.active
+            
+            # ========== ABA 1: Todas As Empresas ==========
+            ws_todas = wb.create_sheet("Todas As Empresas")
+            
+            # Estilos
+            header_font = Font(bold=True)
+            header_fill = PatternFill(start_color="DAEEF3", end_color="DAEEF3", fill_type="solid")
+            thin_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+            
+            linha_atual = 1
+            primeira_empresa = True
+            
+            for empresa in sorted(dados_empresas.keys()):
+                df = dados_empresas[empresa]['df']
+                
+                # Se não for a primeira empresa, pular uma linha em branco
+                if not primeira_empresa:
+                    linha_atual += 1  # Linha em branco
+                
+                # Escrever cabeçalho
+                for col_idx, col_name in enumerate(df.columns, 1):
+                    cell = ws_todas.cell(row=linha_atual, column=col_idx, value=col_name)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.border = thin_border
+                
+                linha_atual += 1
+                
+                # Escrever dados
+                for row_idx, row in df.iterrows():
+                    for col_idx, value in enumerate(row, 1):
+                        cell = ws_todas.cell(row=linha_atual, column=col_idx, value=value)
+                        cell.border = thin_border
+                    linha_atual += 1
+                
+                primeira_empresa = False
+            
+            # Ajustar largura das colunas na aba "Todas As Empresas"
+            for column_cells in ws_todas.columns:
+                max_length = 0
+                column_letter = column_cells[0].column_letter
+                for cell in column_cells:
+                    try:
+                        if cell.value:
+                            max_length = max(max_length, len(str(cell.value)))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                ws_todas.column_dimensions[column_letter].width = adjusted_width
+            
+            # ========== ABAS POR EMPRESA ==========
+            for empresa in sorted(dados_empresas.keys()):
+                df = dados_empresas[empresa]['df']
+                
+                # Criar nome seguro para a aba (max 31 caracteres, sem caracteres especiais)
+                nome_aba = re.sub(r'[\\/*?:\[\]]', '', empresa)[:31]
+                
+                ws_empresa = wb.create_sheet(nome_aba)
+                
+                # Escrever cabeçalho
+                for col_idx, col_name in enumerate(df.columns, 1):
+                    cell = ws_empresa.cell(row=1, column=col_idx, value=col_name)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.border = thin_border
+                
+                # Escrever dados
+                for row_idx, row in df.iterrows():
+                    for col_idx, value in enumerate(row, 1):
+                        cell = ws_empresa.cell(row=row_idx + 2, column=col_idx, value=value)
+                        cell.border = thin_border
+                
+                # Ajustar largura das colunas
+                for column_cells in ws_empresa.columns:
+                    max_length = 0
+                    column_letter = column_cells[0].column_letter
+                    for cell in column_cells:
+                        try:
+                            if cell.value:
+                                max_length = max(max_length, len(str(cell.value)))
+                        except:
+                            pass
+                    adjusted_width = min(max_length + 2, 50)
+                    ws_empresa.column_dimensions[column_letter].width = adjusted_width
+            
+            # Remover a aba padrão vazia
+            if default_sheet.title == "Sheet":
+                wb.remove(default_sheet)
+            
+            # Salvar o arquivo
+            try:
+                wb.save(arquivo_saida)
+                self.add_log_entry(f"✅ Relatório salvo com sucesso: {arquivo_saida}", "success")
+            except PermissionError:
+                # Tentar nome alternativo se o arquivo estiver em uso
+                arquivo_alternativo = get_alternative_filename(arquivo_saida)
+                wb.save(arquivo_alternativo)
+                self.add_log_entry(f"✅ Relatório salvo com nome alternativo: {arquivo_alternativo}", "success")
+                arquivo_saida = arquivo_alternativo
+            
+            # Atualizar progresso final
+            self.update_progress("Processamento concluído!", 1, 1)
+            
+            # Calcular totais de problemas
+            total_problemas = len(empresas_sem_pasta) + len(empresas_sem_arquivo) + len(empresas_com_erro)
+            
+            # Resumo
+            self.add_log_entry("=" * 60, "info")
+            self.add_log_entry(f"📊 RESUMO DO PROCESSAMENTO - Relatório Insuficientes", "header")
+            self.add_log_entry(f"📅 Período processado: {mes}/{ano}", "info")
+            self.add_log_entry(f"✅ Empresas processadas com sucesso: {empresas_processadas}/{len(empresas)}", "success")
+            
+            if empresas_sem_pasta:
+                self.add_log_entry(f"⚠️ Empresas sem pasta do período ({len(empresas_sem_pasta)}):", "warning")
+                for emp in empresas_sem_pasta:
+                    self.add_log_entry(f"   - {emp}", "warning")
+            
+            if empresas_sem_arquivo:
+                self.add_log_entry(f"⚠️ Empresas sem arquivo .xlsx ({len(empresas_sem_arquivo)}):", "warning")
+                for emp in empresas_sem_arquivo:
+                    self.add_log_entry(f"   - {emp}", "warning")
+            
+            if empresas_com_erro:
+                self.add_log_entry(f"❌ Empresas com erro de processamento ({len(empresas_com_erro)}):", "error")
+                for err in empresas_com_erro:
+                    self.add_log_entry(f"   - {err}", "error")
+            
+            self.add_log_entry(f"📁 Arquivo gerado: {arquivo_saida}", "info")
+            self.add_log_entry("=" * 60, "info")
+            
+            logging.info(f"Relatório Insuficientes concluído: {empresas_processadas} empresas processadas, {total_problemas} com problemas")
+            
+            # Mensagem de sucesso
+            self.status_var.set(f"✅ Relatório Insuficientes gerado: {empresas_processadas}/{len(empresas)} empresas")
+            
+            msg_sucesso = f"Relatório gerado com sucesso!\n\n"
+            msg_sucesso += f"Total de empresas encontradas: {len(empresas)}\n"
+            msg_sucesso += f"Empresas processadas: {empresas_processadas}\n"
+            if total_problemas > 0:
+                msg_sucesso += f"\n⚠️ Empresas com problemas: {total_problemas}\n"
+                if empresas_sem_pasta:
+                    msg_sucesso += f"  - Sem pasta {ano}/{mes}: {len(empresas_sem_pasta)}\n"
+                if empresas_sem_arquivo:
+                    msg_sucesso += f"  - Sem arquivo .xlsx: {len(empresas_sem_arquivo)}\n"
+                if empresas_com_erro:
+                    msg_sucesso += f"  - Com erro: {len(empresas_com_erro)}\n"
+            msg_sucesso += f"\nArquivo salvo em:\n{arquivo_saida}"
+            
+            messagebox.showinfo("Sucesso", msg_sucesso)
+            
+        except Exception as e:
+            logging.error(f"Erro ao gerar Relatório de Motoristas Insuficientes: {str(e)}")
+            logging.error(f"Traceback completo: {traceback.format_exc()}")
+            self.add_log_entry(f"❌ Erro crítico: {str(e)}", "error")
+            self.status_var.set("❌ Erro ao gerar Relatório de Motoristas Insuficientes")
+            messagebox.showerror("Erro", f"Erro ao gerar relatório:\n{str(e)}")
+            self.update_progress("Erro no processamento", 1, 1)
 
     def generate_pdf_report(self):
         """Gera um relatório PDF com o log de processamento e estatísticas"""

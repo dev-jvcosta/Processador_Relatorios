@@ -20,6 +20,8 @@ O script processa e gera os seguintes tipos de relatórios:
 
 * **Resumo_Motorista_Cliente:** Métricas consolidadas por cliente e motorista com distribuição proporcional de KM e litros.
 
+* **Relatório de Motoristas Insuficientes (RPP_Insuficientes):** Consolidação de relatórios de ranking por empresa em um único arquivo Excel, cruzando dados de múltiplas empresas para um período específico (Ano/Mês).
+
 ## 🛠️ Pré-requisitos
 
 * **Python 3.7 ou superior** instalado (recomendado Python 3.9+)
@@ -258,7 +260,47 @@ A interface gráfica será aberta automaticamente.
 
 - **Consolidar Ouro Mediano:** Processa a consolidação específica de registros Ouro Mediano
 - **Processar Ranking_Km_Proporcional:** Processa apenas o tipo Ranking_Km_Proporcional
+- **Gerar Relatório Insuficientes:** Abre um modal para gerar o relatório consolidado de motoristas insuficientes (ver seção dedicada abaixo)
 - **Atualizar:** Recarrega a lista de empresas e períodos disponíveis (use sempre antes de processar em lote)
+
+### Gerar Relatório de Motoristas Insuficientes
+
+Esta funcionalidade permite consolidar os relatórios `Ranking_Por_Empresa` de todas as empresas em um único arquivo Excel.
+
+**Como usar:**
+
+1. Clique no botão **"Gerar Relatório Insuficientes"**
+2. Na janela modal que se abre, configure:
+   - **Caminho Ranking_Por_Empresa:** Informe o caminho absoluto até a pasta `Ranking_Por_Empresa` (ou clique em "Procurar" para selecionar)
+   - **Ano:** Informe o ano desejado (ex: 2025)
+   - **Mês:** Selecione o mês no dropdown (ex: Novembro)
+3. Clique em **"Gerar Relatório"**
+
+**Estrutura esperada de entrada:**
+```
+Ranking_Por_Empresa/
+├── Alpha/
+│   └── 2025/
+│       └── Novembro/
+│           └── Ranking_Por_Empresa_Alpha_Novembro_2025.xlsx
+├── Amparo/
+│   └── 2025/
+│       └── Novembro/
+│           └── Ranking_Por_Empresa_Amparo_Novembro_2025.xlsx
+└── [Outras Empresas]/
+    └── ...
+```
+
+**Arquivo de saída gerado:**
+- **Localização:** `RPP_Insuficientes/Relatório_Por_Empresa_Insuficientes.xlsx`
+- **Estrutura do Excel:**
+  - **Aba "Todas As Empresas":** Consolida os dados de todas as empresas em uma única aba. Os dados de cada empresa são separados por uma linha em branco, com cabeçalhos repetidos.
+  - **Abas individuais por empresa:** Uma aba para cada empresa (ex: "Alpha", "Amparo") contendo os dados completos do relatório original.
+
+**Tratamento de erros:**
+- Se uma empresa não tiver a pasta do Ano/Mês especificado, ela é ignorada e um aviso é registrado no log
+- Se a pasta existir mas não contiver arquivo `.xlsx`, um aviso é exibido
+- O processamento continua para as demais empresas mesmo se houver erros em algumas
 
 ### Acompanhamento do Processamento
 
@@ -326,11 +368,14 @@ Diretório_Saída/
 │           └── [Mês]/
 │               └── Turnos_Integração_[Empresa]_[Mês]_[Ano][Versão].xlsx
 │
-└── RMC_Destribuida/
-    └── [Empresa]/
-        └── 2025/
-            └── [Mês]/
-                └── RMC_Km_l_Distribuida_[Empresa]_[Mês]_[Ano][Versão].xlsx
+├── RMC_Destribuida/
+│   └── [Empresa]/
+│       └── 2025/
+│           └── [Mês]/
+│               └── RMC_Km_l_Distribuida_[Empresa]_[Mês]_[Ano][Versão].xlsx
+│
+└── RPP_Insuficientes/
+    └── Relatório_Por_Empresa_Insuficientes.xlsx
 ```
 
 ## ⚠️ Solução de Problemas Comuns
