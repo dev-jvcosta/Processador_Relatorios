@@ -416,7 +416,7 @@ Diretório_Saída/
 
 ### Tkinter não encontrado
 
-**Problema:** Erro `ModuleNotFoundError: No module named 'tkinter'`
+**Problema:** Erro `ModuleNotFoundError: No module named '_tkinter'` ou `No module named 'tkinter'`
 
 **Soluções:**
 
@@ -433,7 +433,32 @@ sudo apt-get install python3-tk
 sudo dnf install python3-tkinter
 ```
 
-**Mac:**
+**macOS com pyenv (Recomendado):**
+O tkinter requer Tcl/Tk instalado e o Python precisa ser compilado com suporte ao tkinter.
+
+**Opção 1 - Script Automático (Mais Fácil):**
+```bash
+./install_tkinter_macos.sh
+```
+
+**Opção 2 - Instalação Manual:**
+1. Instale o Tcl/Tk via Homebrew:
+```bash
+brew install tcl-tk
+```
+
+2. Reinstale o Python com suporte ao tkinter:
+```bash
+env PATH="$(brew --prefix tcl-tk)/bin:$PATH" pyenv install --force 3.14.0
+```
+(Substitua `3.14.0` pela sua versão do Python)
+
+3. Verifique a instalação:
+```bash
+python -c "import tkinter; print('tkinter OK!')"
+```
+
+**macOS com Python padrão:**
 - O Tkinter geralmente vem pré-instalado. Se não, reinstale o Python do python.org
 
 ### Interface não abre ou aparece em branco

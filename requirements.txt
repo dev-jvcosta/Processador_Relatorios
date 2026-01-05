@@ -4,3 +4,9 @@ reportlab>=3.6.0
 numpy>=1.21.0
 sv-ttk>=2.0.0
 darkdetect>=0.8.0
+
+# NOTA: tkinter não pode ser instalado via pip
+# Para macOS com pyenv, instale Tcl/Tk e recompile o Python:
+# 1. brew install tcl-tk
+# 2. env PATH="$(brew --prefix tcl-tk)/bin:$PATH" pyenv install 3.14.0
+# Ou reinstale sua versão atual do Python com suporte ao tkinter

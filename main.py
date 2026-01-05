@@ -1,15 +1,48 @@
 import pandas as pd
 import os
+import sys
 import logging
 from datetime import datetime, time as dtime
 import time as tm
 import re
 import numpy as np
 import unicodedata
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
-import sv_ttk
-import darkdetect
+
+# Importação do tkinter com tratamento de erro
+try:
+    import tkinter as tk
+    from tkinter import filedialog, messagebox, ttk
+    import sv_ttk
+    import darkdetect
+    TKINTER_AVAILABLE = True
+except ImportError as e:
+    TKINTER_AVAILABLE = False
+    error_msg = """
+╔════════════════════════════════════════════════════════════════╗
+║  ERRO: tkinter não está disponível                            ║
+╚════════════════════════════════════════════════════════════════╝
+
+Para instalar o suporte ao tkinter no macOS com pyenv:
+
+1. Instale o Tcl/Tk:
+   brew install tcl-tk
+
+2. Reinstale o Python com pyenv:
+   env PATH="$(brew --prefix tcl-tk)/bin:$PATH" pyenv install --force 3.14.0
+   
+   (Substitua 3.14.0 pela sua versão do Python)
+
+3. Ou execute o script de instalação automática:
+   ./install_tkinter_macos.sh
+
+4. Verifique a instalação:
+   python -c "import tkinter; print('tkinter OK!')"
+
+Erro detalhado: {0}
+""".format(str(e))
+    print(error_msg)
+    logging.error(f"tkinter não está disponível: {str(e)}")
+    sys.exit(1)
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
